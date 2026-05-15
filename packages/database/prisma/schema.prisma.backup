@@ -1,0 +1,383 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+model Tenant {
+  id         String   @id @default(uuid())
+  name       String
+  subdomain  String?  @unique
+  isActive   Boolean  @default(true)
+  theme      String   @default("default")
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime? // Using DateTime for expiry allows precise control
+  isDemo     Boolean  @default(false)
+  
+  // Relations
+  users      User[]
+  products   Product[]
+  customers  Customer[]
+  orders     Order[]
+  accounts   Account[]
+  flags      Flag[]
+  
+  // New System Relations
+  docTypes   DocType[]
+  warehouses Warehouse[]
+  suppliers  Supplier[]
+  categories Category[]
+  
+  // Manufacturing & Assets
+  formulas         Formula[]
+  workOrders       WorkOrder[]
+  productionPlans  ProductionPlan[]
+  assets           Asset[]
+  assetCategories  AssetCategory[]
+  transactions     Transaction[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  email     String   @unique
+  username  String
+  password  String
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+// ... (previous content remains until Flag)
+
+// ---------------------------------------------------------
+// SYSTEM CORE: DocTypes & Flags
+// ---------------------------------------------------------
+
+model DocType {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String   // e.g., "Sales Invoice", "Purchase Order"
+  slug        String   // e.g., "SI", "PO", "JV"
+  description String?
+  isSystem    Boolean  @default(false)
+  
+  // Audit Fields
+  createdAt   DateTime @default(now())
+  createdBy   String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  orders      Order[]
+  transactions Transaction[]
+  
+  @@unique([tenantId, name])
+  @@unique([tenantId, slug])
+}
+
+model Flag {
+  id          String   @id @default(uuid())
+  tenantId    String
+  flagName    String   // User requested: flagName
+  description String?
+  colorCode   String?  @default("#808080")
+  
+  // Audit Fields
+  createdAt   DateTime @default(now())
+  createdBy   String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  orders      Order[]  @relation("OrderFlags")
+}
+
+// ---------------------------------------------------------
+// COMMERCE & INVENTORY
+// ---------------------------------------------------------
+
+model Warehouse { // Venue / Godowns
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  location    String?
+  createdAt   DateTime @default(now())
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  orders      Order[]
+  assets      Asset[]
+}
+
+model Supplier {
+  id             String   @id @default(uuid())
+  tenantId       String
+  name           String
+  companyName    String?
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime @default(now())
+  
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  orders         Order[]
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  tenantId    String
+  name        String
+  parentId    String?
+  description String?
+  createdAt   DateTime   @default(now())
+  
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
+  
+  // Relations to Tenant assumed handled by parentId logic or could add tenant relation explicitly if needed for root categories
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+}
+
+model Product {
+  id              String   @id @default(uuid())
+  tenantId        String
+  categoryId      String?
+  sku             String
+  name            String
+  description     String?
+  basePrice       Decimal  @db.Decimal(19, 4)
+  costPrice       Decimal  @db.Decimal(19, 4)
+  stockQuantity   Decimal  @db.Decimal(19, 4) @default(0.00)
+  minStockLevel   Decimal  @db.Decimal(19, 4) @default(0.00)
+  weightUnit      String?  @default("kg")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  category        Category? @relation(fields: [categoryId], references: [id])
+  orderProducts   OrderProduct[]
+  formulas        Formula[] // For manufacturing
+  formulaItems    FormulaItem[]
+
+  @@unique([tenantId, sku])
+}
+
+model Customer {
+  id             String   @id @default(uuid())
+  tenantId       String
+  firstName      String?
+  lastName       String?
+  companyName    String?
+  email          String?
+  phone          String?
+  billingAddress String?
+  shippingAddress String?
+  password       String?
+  portalAccess   Boolean  @default(false)
+  ledgerBalance  Decimal  @db.Decimal(19, 4) @default(0.00)
+  createdAt      DateTime @default(now())
+  
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  orders         Order[]
+
+  @@unique([tenantId, email])
+}
+
+model Order {
+  id             String   @id @default(uuid())
+  tenantId       String
+  docTypeId      String?   // Link to DocType (SI, PO, etc.) - Make optional initially to avoid migration fail, enforce later
+  customerId     String?   // For Sales
+  supplierId     String?   // For Purchases
+  warehouseId    String?   // Venue/Godown
+  
+  orderNumber    String
+  status         String   @default("Pending")
+  totalAmount    Decimal  @db.Decimal(19, 4) @default(0.00)
+  taxAmount      Decimal  @db.Decimal(19, 4) @default(0.00)
+  discountAmount Decimal  @db.Decimal(19, 4) @default(0.00)
+  shippingCost   Decimal  @db.Decimal(19, 4) @default(0.00)
+  orderDate      DateTime @default(now())
+  dueDate        DateTime?
+  notes          String?
+  
+  // Audit
+  createdBy      String?
+  updatedBy      String?
+  
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  docType        DocType? @relation(fields: [docTypeId], references: [id])
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  supplier       Supplier? @relation(fields: [supplierId], references: [id])
+  warehouse      Warehouse? @relation(fields: [warehouseId], references: [id])
+  
+  products       OrderProduct[]
+  flags          Flag[]    @relation("OrderFlags")
+
+  @@unique([tenantId, orderNumber])
+}
+
+model OrderProduct {
+  id          String   @id @default(uuid())
+  orderId     String
+  productId   String
+  quantity    Decimal  @db.Decimal(19, 4)
+  unitPrice   Decimal  @db.Decimal(19, 4)
+  discount    Decimal  @db.Decimal(19, 4) @default(0.00)
+  taxRate     Decimal  @db.Decimal(5, 2) @default(0.00)
+  
+  order       Order    @relation(fields: [orderId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+// ---------------------------------------------------------
+// FINANCIALS
+// ---------------------------------------------------------
+
+model Account {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  accountType String   // Asset, Liability, Revenue, Expense
+  accountCode String?
+  balance     Decimal  @db.Decimal(19, 4) @default(0.00)
+  currency    String   @default("USD")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  transactions Transaction[]
+
+  @@unique([tenantId, accountCode])
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  tenantId        String
+  accountId       String
+  docTypeId       String?  // JV, CPV, etc.
+  orderId         String?
+  amount          Decimal  @db.Decimal(19, 4)
+  type            String   // 'Credit' or 'Debit'
+  description     String?
+  referenceNumber String?
+  transactionDate DateTime @default(now())
+  
+  account         Account  @relation(fields: [accountId], references: [id])
+  docType         DocType? @relation(fields: [docTypeId], references: [id])
+  
+  // Relations for context
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+// ---------------------------------------------------------
+// ASSETS
+// ---------------------------------------------------------
+
+model AssetCategory {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  createdAt   DateTime @default(now())
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  assets      Asset[]
+}
+
+model Asset {
+  id          String   @id @default(uuid())
+  tenantId    String
+  categoryId  String
+  warehouseId String?
+  name        String
+  value       Decimal  @db.Decimal(19, 4)
+  purchaseDate DateTime?
+  status      String   @default("Active") // Active, Disposed, Depreciated
+  createdAt   DateTime @default(now())
+  
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  category    AssetCategory @relation(fields: [categoryId], references: [id])
+  warehouse   Warehouse?    @relation(fields: [warehouseId], references: [id])
+  allocations AssetAllocation[]
+}
+
+model AssetAllocation {
+  id          String   @id @default(uuid())
+  assetId     String
+  assignedTo  String?  // User or Employee Name
+  assignedDate DateTime @default(now())
+  returnDate  DateTime?
+  
+  asset       Asset    @relation(fields: [assetId], references: [id])
+}
+
+// ---------------------------------------------------------
+// MANUFACTURING
+// ---------------------------------------------------------
+
+model Formula { // BOM
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  productId   String   // Output Product
+  yieldQuantity Decimal @db.Decimal(19, 4) @default(1.00)
+  createdAt   DateTime @default(now())
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+  items       FormulaItem[]
+  workOrders  WorkOrder[]
+}
+
+model FormulaItem {
+  id            String   @id @default(uuid())
+  formulaId     String
+  itemProductId String   // Ingredient SKU
+  quantity      Decimal  @db.Decimal(19, 4)
+  unitCost      Decimal  @db.Decimal(19, 4) @default(0.00)
+  wastePercentage Decimal @db.Decimal(5, 2) @default(0.00)
+  
+  formula       Formula  @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  itemProduct   Product  @relation(fields: [itemProductId], references: [id])
+}
+
+model WorkOrder {
+  id          String   @id @default(uuid())
+  tenantId    String
+  formulaId   String
+  docTypeId   String?
+  quantity    Decimal  @db.Decimal(19, 4)
+  status      String   @default("Planned")
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  formula     Formula  @relation(fields: [formulaId], references: [id])
+}
+
+model ProductionPlan {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  status      String
+  
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+}
