@@ -30,11 +30,13 @@ export function NewWorkOrderModal({ isOpen, onClose, onSuccess }: NewWorkOrderMo
     const [dueDate, setDueDate] = useState("");
     const [priority, setPriority] = useState(1);
     const [notes, setNotes] = useState("");
+    const [assignedToId, setAssignedToId] = useState("");
 
     // Data
     const [products, setProducts] = useState<any[]>([]);
     const [formulas, setFormulas] = useState<any[]>([]);
     const [warehouses, setWarehouses] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
     const [filteredFormulas, setFilteredFormulas] = useState<any[]>([]);
     const [loadingData, setLoadingData] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -48,14 +50,16 @@ export function NewWorkOrderModal({ isOpen, onClose, onSuccess }: NewWorkOrderMo
     const fetchData = async () => {
         try {
             setLoadingData(true);
-            const [prodData, formData, whData] = await Promise.all([
+            const [prodData, formData, whData, userData] = await Promise.all([
                 api.get<any[]>('/products?hasFormula=true'),
                 api.get<any[]>('/manufacturing/formulas'),
-                api.get<any[]>('/warehouses').catch(() => [])
+                api.get<any[]>('/warehouses').catch(() => []),
+                api.get<any[]>('/auth/users').catch(() => [])
             ]);
 
             setProducts(prodData || []);
             setFormulas(formData || []);
+            setUsers(userData || []);
             if (Array.isArray(whData)) {
                 setWarehouses(whData);
                 if (whData.length > 0) setSelectedWarehouseId(whData[0].id);
@@ -97,6 +101,7 @@ export function NewWorkOrderModal({ isOpen, onClose, onSuccess }: NewWorkOrderMo
                 dueDate: dueDate || undefined,
                 bomId: selectedFormulaId,
                 warehouseId: selectedWarehouseId,
+                assignedToId: assignedToId || undefined,
                 priority,
                 notes
             };
@@ -218,7 +223,7 @@ export function NewWorkOrderModal({ isOpen, onClose, onSuccess }: NewWorkOrderMo
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-sm font-bold ml-1">Quantity to Produce</label>
                             <input
@@ -231,12 +236,37 @@ export function NewWorkOrderModal({ isOpen, onClose, onSuccess }: NewWorkOrderMo
                             />
                         </div>
                         <div className="space-y-2">
+                            <label className="text-sm font-bold ml-1">Assigned Technician</label>
+                            <select
+                                value={assignedToId}
+                                onChange={e => setAssignedToId(e.target.value)}
+                                className="w-full h-12 rounded-xl border bg-background px-4 font-medium outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                            >
+                                <option value="">Select Staff...</option>
+                                {users.map(u => (
+                                    <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
                             <label className="text-sm font-bold ml-1">Scheduled Start Date</label>
                             <input
                                 type="date"
                                 required
                                 value={startDate}
                                 onChange={e => setStartDate(e.target.value)}
+                                className="w-full h-12 rounded-xl border bg-background px-4 font-medium outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold ml-1">Expected Completion</label>
+                            <input
+                                type="date"
+                                value={dueDate}
+                                onChange={e => setDueDate(e.target.value)}
                                 className="w-full h-12 rounded-xl border bg-background px-4 font-medium outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
                             />
                         </div>

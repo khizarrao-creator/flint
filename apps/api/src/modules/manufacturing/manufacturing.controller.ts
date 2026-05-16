@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { ManufacturingService } from './manufacturing.service';
 import { TenantId } from '../../common/decorators/tenant.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -39,16 +39,43 @@ export class ManufacturingController {
         return this.manufacturingService.deleteFormula(tenantId, id);
     }
 
-    // Work Order Endpoints
+    @Post('formulas/:id/clone')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER)
+    async cloneFormula(
+        @Param('id') id: string,
+        @TenantId() tenantId: string,
+        @Body('version') version: string
+    ) {
+        return this.manufacturingService.cloneFormula(tenantId, id, version);
+    }
+
     @Get('work-orders')
     @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.VIEWER)
     async findAllWorkOrders(@TenantId() tenantId: string) {
         return this.manufacturingService.findAllWorkOrders(tenantId);
     }
 
+    @Get('work-orders/:id')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER, UserRole.VIEWER)
+    async findOneWorkOrder(@Param('id') id: string, @TenantId() tenantId: string) {
+        return this.manufacturingService.findOneWorkOrder(tenantId, id);
+    }
+
     @Post('work-orders')
     @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER)
     async createWorkOrder(@TenantId() tenantId: string, @Body() data: any) {
         return this.manufacturingService.createWorkOrder(tenantId, data);
+    }
+
+    @Put('work-orders/:id')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER)
+    async updateWorkOrder(@Param('id') id: string, @TenantId() tenantId: string, @Body() data: any) {
+        return this.manufacturingService.updateWorkOrder(tenantId, id, data);
+    }
+
+    @Delete('work-orders/:id')
+    @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+    async deleteWorkOrder(@Param('id') id: string, @TenantId() tenantId: string) {
+        return this.manufacturingService.deleteWorkOrder(tenantId, id);
     }
 }

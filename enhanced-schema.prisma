@@ -1,13 +1,13 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema", "metrics"]
+  previewFeatures = ["metrics"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["public", "audit", "logs"] // Multi-schema support for data segregation
 }
+
 
 // ---------------------------------------------------------
 // ENUMS & SCALAR TYPES
@@ -61,34 +61,6 @@ enum ApprovalStatus {
   APPROVED
   REJECTED
   CANCELLED
-}
-
-// ---------------------------------------------------------
-// COMPOSITE TYPES
-// ---------------------------------------------------------
-
-type Address {
-  street     String?
-  city       String?
-  state      String?
-  country    String  @default("US")
-  postalCode String?
-}
-
-type ContactInfo {
-  phone      String?
-  mobile     String?
-  email      String?
-  website    String?
-}
-
-type AuditMetadata {
-  createdAt DateTime
-  createdBy String?
-  updatedAt DateTime
-  updatedBy String?
-  ipAddress String?
-  userAgent String?
 }
 
 // ---------------------------------------------------------
@@ -168,6 +140,7 @@ model Tenant {
   workOrderItems   WorkOrderItem[]
   productionPlans  ProductionPlan[]
   productionLines  ProductionLine[]
+  inspections      QualityInspection[]
   
   // Assets
   assets           Asset[]
@@ -178,6 +151,7 @@ model Tenant {
   // Supply Chain
   purchaseOrders   PurchaseOrder[]
   salesOrders      SalesOrder[]
+  orderItems       OrderItem[]
   quotations       Quotation[]
   deliveryNotes    DeliveryNote[]
   
@@ -188,6 +162,7 @@ model Tenant {
   @@index([isActive])
   @@index([subdomain])
   @@index([createdAt])
+  stockItems StockItem[]
 }
 
 model User {
@@ -226,12 +201,15 @@ model User {
   workOrdersAssigned WorkOrder[] @relation("WorkOrderAssignments")
   workOrdersCreated  WorkOrder[] @relation("WorkOrderCreatedBy")
   transactions       Transaction[]
-  orders             Order[]
+  salesOrders        SalesOrder[]
+  inspections        QualityInspection[]
 
   @@unique([tenantId, email])
   @@index([tenantId, role])
   @@index([tenantId, isActive])
   @@index([lastActiveAt])
+  notificationLogs NotificationLog[]
+  warehouses Warehouse[]
 }
 
 model UserSession {
@@ -406,9 +384,10 @@ model PaymentTerm {
   updatedAt   DateTime @updatedAt
 
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  customers   Customer[]
-  suppliers   Supplier[]
-  orders      Order[]
+  customers      Customer[]
+  suppliers      Supplier[]
+  salesOrders    SalesOrder[]
+  purchaseOrders PurchaseOrder[]
 
   @@unique([tenantId, code])
 }
@@ -427,7 +406,7 @@ model ShippingMethod {
   updatedAt   DateTime @updatedAt
 
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  orders      Order[]
+  salesOrders SalesOrder[]
 
   @@unique([tenantId, code])
 }
@@ -452,12 +431,13 @@ model DocType {
 
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
   docSequences DocSequence[]
-  orders       Order[]
+  salesOrders  SalesOrder[]
   journals     Journal[]
   invoices     Invoice[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, name])
+  approvals Approval[]
 }
 
 model DocSequence {
@@ -495,7 +475,7 @@ model Flag {
   audit       Json?    // Embedded AuditMetadata
 
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  orders      Order[]
+  salesOrders SalesOrder[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, name])
@@ -552,12 +532,15 @@ model Warehouse {
   manager     User?    @relation(fields: [managerId], references: [id])
   stockItems  StockItem[]
   stockTakes  StockTake[]
-  transfers   Transfer[]
-  assets      Asset[]
-  workOrders  WorkOrder[]
+  transfersFrom  Transfer[]  @relation("TransfersFrom")
+  transfersTo    Transfer[]  @relation("TransfersTo")
+  assets         Asset[]
+  workOrders     WorkOrder[]
+  purchaseOrders PurchaseOrder[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, name])
+  salesOrders SalesOrder[]
 }
 
 model StockItem {
@@ -593,6 +576,7 @@ model StockItem {
   @@index([tenantId, warehouseId])
   @@index([expiryDate])
   @@index([sku])
+  stockAdjustments StockAdjustment[]
 }
 
 model StockMovement {
@@ -795,13 +779,16 @@ model Product {
   stockItems      StockItem[]
   orderItems      OrderItem[]
   transferItems   TransferItem[]
-  formula         Formula?     // For manufactured products
+  formulas        Formula[]    // For manufactured products
+  formulaItems    FormulaItem[]
   workOrderItems  WorkOrderItem[]
+  inspections     QualityInspection[]
+  productionLines ProductionLine[]
+  deliveryItems   DeliveryItem[]
+  invoiceItems    InvoiceItem[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, sku])
-  @@unique([barcode])
-  @@unique([upc])
   @@index([tenantId, categoryId])
   @@index([tenantId, isActive])
   @@index([tenantId, isStockable])
@@ -841,6 +828,7 @@ model Supplier {
   paymentTerm     PaymentTerm? @relation(fields: [paymentTermId], references: [id])
   purchaseOrders  PurchaseOrder[]
   invoices        Invoice[]
+  payments        Payment[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, taxId])
@@ -927,11 +915,16 @@ model SalesOrder {
   items           OrderItem[]
   invoices        Invoice[]
   deliveries      DeliveryNote[]
+  quotation       Quotation?     @relation("QuotationToSalesOrder", fields: [quotationId], references: [id])
+  quotationId     String?
 
   @@unique([tenantId, code])
   @@index([tenantId, customerId])
   @@index([tenantId, status])
   @@index([orderDate])
+  users User[]
+  docTypes DocType[]
+  flags Flag[]
 }
 
 model PurchaseOrder {
@@ -1000,7 +993,9 @@ model OrderItem {
   id              String   @id @default(uuid())
   tenantId        String
   orderType       String   // SALES_ORDER, PURCHASE_ORDER, QUOTATION
-  orderId         String
+  salesOrderId    String?
+  purchaseOrderId String?
+  quotationId     String?
   productId       String
   quantity        Decimal  @db.Decimal(19, 4)
   deliveredQuantity Decimal @db.Decimal(19, 4) @default(0.00)
@@ -1016,11 +1011,15 @@ model OrderItem {
 
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
   product         Product  @relation(fields: [productId], references: [id])
-  salesOrder      SalesOrder?   @relation(fields: [orderId], references: [id])
-  purchaseOrder   PurchaseOrder? @relation(fields: [orderId], references: [id])
-  quotation       Quotation?    @relation(fields: [orderId], references: [id])
+  salesOrder      SalesOrder?   @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  quotation       Quotation?    @relation(fields: [quotationId], references: [id])
+  deliveryItems   DeliveryItem[]
+  invoiceItems    InvoiceItem[]
 
-  @@index([tenantId, orderType, orderId])
+  @@index([tenantId, salesOrderId])
+  @@index([tenantId, purchaseOrderId])
+  @@index([tenantId, quotationId])
   @@index([productId])
 }
 
@@ -1059,6 +1058,10 @@ model Invoice {
   supplier        Supplier? @relation(fields: [supplierId], references: [id])
   items           InvoiceItem[]
   payments        Payment[]
+  salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  salesOrderId    String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId String?
 
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId, referenceType, referenceId])
@@ -1081,6 +1084,8 @@ model InvoiceItem {
 
   invoice         Invoice  @relation(fields: [invoiceId], references: [id])
   product         Product  @relation(fields: [productId], references: [id])
+  orderItem       OrderItem? @relation(fields: [orderItemId], references: [id])
+  orderItemId     String?
 
   @@index([invoiceId])
 }
@@ -1208,7 +1213,8 @@ model Journal {
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
   docType         DocType  @relation(fields: [docTypeId], references: [id])
   transactions    Transaction[]
-  reversal        Journal? @relation(fields: [reversalId], references: [id])
+  reversal        Journal? @relation("JournalReversals", fields: [reversalId], references: [id])
+  reversedBy      Journal[] @relation("JournalReversals")
 
   @@unique([tenantId, journalNumber])
   @@index([tenantId, journalDate])
@@ -1239,11 +1245,14 @@ model Transaction {
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
   journal         Journal? @relation(fields: [journalId], references: [id])
   account         Account  @relation(fields: [accountId], references: [id])
+  expense         Expense? @relation(fields: [expenseId], references: [id])
+  expenseId       String?
 
   @@index([tenantId, accountId])
   @@index([tenantId, transactionDate])
   @@index([tenantId, referenceType, referenceId])
   @@index([tenantId, isReconciled])
+  users User[]
 }
 
 model Expense {
@@ -1337,6 +1346,7 @@ model WorkOrder {
   quantity        Decimal  @db.Decimal(19, 4)
   completedQuantity Decimal @db.Decimal(19, 4) @default(0.00)
   scrapQuantity   Decimal  @db.Decimal(19, 4) @default(0.00)
+  batchNumber     String?
   plannedStart    DateTime?
   plannedFinish   DateTime?
   actualStart     DateTime?
@@ -1354,12 +1364,37 @@ model WorkOrder {
   createdBy       User?    @relation("WorkOrderCreatedBy", fields: [createdById], references: [id])
   items           WorkOrderItem[]
   productionLines ProductionLine[]
+  inspections     QualityInspection[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
   @@index([tenantId, assignedToId])
   @@index([plannedStart])
   @@index([actualStart])
+}
+
+model QualityInspection {
+  id              String   @id @default(uuid())
+  tenantId        String
+  workOrderId     String?
+  productId       String
+  batchNumber     String?
+  inspectorId     String?
+  status          String   @default("PENDING") // PENDING, PASSED, FAILED, REJECTED
+  checkpoints     Json?    // Array of {name, passed, notes}
+  images          Json?    // Array of URLs
+  notes           String?
+  inspectedAt     DateTime?
+  metadata        Json?
+  audit           Json?    // Embedded AuditMetadata
+
+  tenant          Tenant     @relation(fields: [tenantId], references: [id])
+  workOrder       WorkOrder? @relation(fields: [workOrderId], references: [id])
+  product         Product    @relation(fields: [productId], references: [id])
+  inspector       User?      @relation(fields: [inspectorId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, batchNumber])
 }
 
 model WorkOrderItem {
@@ -1640,15 +1675,3 @@ model DashboardReport {
   @@unique([dashboardId, reportId])
 }
 
-// ---------------------------------------------------------
-// INDEXES & PERFORMANCE
-// ---------------------------------------------------------
-
-// Add composite indexes for common query patterns
-@@index([tenantId, status, createdAt])
-@@index([tenantId, updatedAt])
-@@index([tenantId, isActive, createdAt])
-
-// Add full-text search indexes
-@@index([name, description], type: Fulltext)
-@@index([sku, barcode, upc], type: Fulltext)

@@ -74,40 +74,52 @@ export default function WorkOrdersPage() {
                         </div>
                     ) : (
                         workOrders.map((wo, i) => (
-                            <motion.div
-                                key={wo.id}
-                                layout
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="group bg-card border rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl hover:border-amber-500/10 transition-all"
-                            >
-                                <div className="flex items-center gap-6">
-                                    <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                                        <Activity size={24} />
+                            <Link key={wo.id} href={`/manufacturing/work-orders/${wo.id}`}>
+                                <motion.div
+                                    layout
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className="group bg-card border rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl hover:border-amber-500/10 transition-all cursor-pointer"
+                                >
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Activity size={24} />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="text-xl font-black tracking-tight leading-none uppercase">{wo.code}</h3>
+                                                <span className={cn(
+                                                    "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
+                                                    wo.priority === '5' ? "bg-rose-500 text-white" :
+                                                    wo.priority === '4' ? "bg-orange-500 text-white" :
+                                                    "bg-muted text-muted-foreground"
+                                                )}>
+                                                    P{wo.priority}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground font-bold">{wo.formula?.product?.name} ({wo.quantity} Units)</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="text-xl font-black tracking-tight leading-none mb-1">WO-{wo.id.slice(0, 8).toUpperCase()}</h3>
-                                        <p className="text-sm text-muted-foreground font-bold">{wo.product?.name} ({wo.quantity} Units)</p>
+                                    <div className="flex items-center gap-8">
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Scheduled</p>
+                                            <p className="font-bold text-lg">{new Date(wo.plannedStart).toLocaleDateString()}</p>
+                                        </div>
+                                        <div className="text-right min-w-[120px]">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</p>
+                                            <span className={cn(
+                                                "inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                                                wo.status === 'COMPLETED' ? "bg-emerald-500/10 text-emerald-500" :
+                                                wo.status === 'IN_PROGRESS' ? "bg-blue-500/10 text-blue-500" :
+                                                "bg-amber-500/10 text-amber-500"
+                                            )}>
+                                                {wo.status}
+                                            </span>
+                                        </div>
+                                        <ChevronRight size={20} className="text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-8">
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Start Date</p>
-                                        <p className="font-bold text-lg">{new Date(wo.startDate).toLocaleDateString()}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</p>
-                                        <span className={cn(
-                                            "inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest",
-                                            wo.status === 'Complete' ? "bg-emerald-500/10 text-emerald-500" :
-                                                wo.status === 'In Progress' ? "bg-blue-500/10 text-blue-500" :
-                                                    "bg-amber-500/10 text-amber-500"
-                                        )}>
-                                            {wo.status}
-                                        </span>
-                                    </div>
-                                </div>
-                            </motion.div>
+                                </motion.div>
+                            </Link>
                         ))
                     )}
                 </AnimatePresence>

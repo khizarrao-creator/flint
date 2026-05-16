@@ -83,7 +83,7 @@ export default function ProductsPage() {
                 </div>
 
                 {canWrite && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         <Link
                             href="/products/categories"
                             className="flex items-center gap-2 px-6 h-14 rounded-2xl bg-muted border font-bold hover:bg-muted/80 transition-all shadow-sm"
@@ -91,9 +91,30 @@ export default function ProductsPage() {
                             <Tag size={20} className="text-primary" />
                             Categories
                         </Link>
+                        <Link
+                            href="/products/brands"
+                            className="flex items-center gap-2 px-6 h-14 rounded-2xl bg-muted border font-bold hover:bg-muted/80 transition-all shadow-sm"
+                        >
+                            <Tag size={20} className="text-primary" />
+                            Brands
+                        </Link>
+                        <Link
+                            href="/products/units"
+                            className="flex items-center gap-2 px-6 h-14 rounded-2xl bg-muted border font-bold hover:bg-muted/80 transition-all shadow-sm"
+                        >
+                            <Tag size={20} className="text-primary" />
+                            Units
+                        </Link>
+                        <Link
+                            href="/products/tax-rates"
+                            className="flex items-center gap-2 px-6 h-14 rounded-2xl bg-muted border font-bold hover:bg-muted/80 transition-all shadow-sm"
+                        >
+                            <Tag size={20} className="text-primary" />
+                            Taxes
+                        </Link>
                         <button
                             onClick={() => setModalConfig({ isOpen: true })}
-                            className="flex items-center gap-2 px-6 h-14 rounded-2xl bg-primary text-primary-foreground font-black shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                            className="flex items-center gap-2 px-6 h-14 rounded-2xl bg-primary text-primary-foreground font-black shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all ml-auto"
                         >
                             <Plus size={22} />
                             Register SKU

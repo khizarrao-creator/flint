@@ -28,6 +28,8 @@ export function NewFormulaModal({ isOpen, onClose, onSuccess }: NewFormulaModalP
     const [yieldPercentage, setYieldPercentage] = useState(100);
     const [description, setDescription] = useState("");
     const [type, setType] = useState("MANUFACTURING");
+    const [version, setVersion] = useState("1.0");
+    const [isActive, setIsActive] = useState(true);
 
     const [items, setItems] = useState<{ productId: string; quantity: number; unitCost: number }[]>([]);
 
@@ -88,6 +90,8 @@ export function NewFormulaModal({ isOpen, onClose, onSuccess }: NewFormulaModalP
             const payload = {
                 name,
                 code: code || `BOM-${Date.now()}`,
+                version,
+                isActive,
                 productId: selectedProductId,
                 yieldQuantity,
                 yield: yieldPercentage,
@@ -102,6 +106,8 @@ export function NewFormulaModal({ isOpen, onClose, onSuccess }: NewFormulaModalP
             // Reset form
             setName("");
             setCode("");
+            setVersion("1.0");
+            setIsActive(true);
             setSelectedProductId("");
             setItems([]);
             setYieldPercentage(100);
@@ -171,7 +177,19 @@ export function NewFormulaModal({ isOpen, onClose, onSuccess }: NewFormulaModalP
                                 ))}
                             </select>
                         </div>
-                        <div className="space-y-2">
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2 col-span-1">
+                            <label className="text-sm font-bold ml-1">BOM Version</label>
+                            <input
+                                required
+                                value={version}
+                                onChange={e => setVersion(e.target.value)}
+                                placeholder="e.g. 1.0"
+                                className="w-full h-12 rounded-xl border bg-background px-4 font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2">
                             <label className="text-sm font-bold ml-1">Recipe Type</label>
                             <select
                                 required
@@ -184,6 +202,19 @@ export function NewFormulaModal({ isOpen, onClose, onSuccess }: NewFormulaModalP
                                 <option value="DISASSEMBLY">Disassembly</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-2xl border border-dashed">
+                        <input 
+                            type="checkbox" 
+                            id="isActive"
+                            checked={isActive}
+                            onChange={e => setIsActive(e.target.checked)}
+                            className="w-5 h-5 accent-indigo-500"
+                        />
+                        <label htmlFor="isActive" className="text-sm font-bold cursor-pointer select-none">
+                            Set as Active Formula (Deactivates other versions for this product)
+                        </label>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

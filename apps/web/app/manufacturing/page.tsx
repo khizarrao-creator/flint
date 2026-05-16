@@ -8,7 +8,8 @@ import {
     Box,
     FileText,
     ArrowRight,
-    Loader2
+    Loader2,
+    Calendar
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -34,9 +35,9 @@ export default function ManufacturingPage() {
             </section>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-outfit">
                 <Link href="/manufacturing/formulas" className="group">
-                    <div className="h-full bg-card border rounded-3xl p-8 hover:shadow-xl hover:border-indigo-500/20 transition-all cursor-pointer relative overflow-hidden">
+                    <div className="h-full bg-card border rounded-[2rem] p-8 hover:shadow-xl hover:border-indigo-500/20 transition-all cursor-pointer relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-bl-[100px] -mr-8 -mt-8" />
 
                         <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -44,15 +45,15 @@ export default function ManufacturingPage() {
                         </div>
 
                         <h3 className="text-2xl font-black mb-2 flex items-center gap-2">
-                            Formulas (BOM)
+                            Formulas
                             <ArrowRight size={20} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-indigo-500" />
                         </h3>
-                        <p className="text-muted-foreground font-medium">Define product recipes, ingredients, and cost structures.</p>
+                        <p className="text-sm text-muted-foreground font-bold">Define recipes and BOM.</p>
                     </div>
                 </Link>
 
                 <Link href="/manufacturing/work-orders" className="group">
-                    <div className="h-full bg-card border rounded-3xl p-8 hover:shadow-xl hover:border-amber-500/20 transition-all cursor-pointer relative overflow-hidden">
+                    <div className="h-full bg-card border rounded-[2rem] p-8 hover:shadow-xl hover:border-amber-500/20 transition-all cursor-pointer relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-[100px] -mr-8 -mt-8" />
 
                         <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -63,7 +64,23 @@ export default function ManufacturingPage() {
                             Work Orders
                             <ArrowRight size={20} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-amber-500" />
                         </h3>
-                        <p className="text-muted-foreground font-medium">Track production status, consume raw materials, and stock finished goods.</p>
+                        <p className="text-sm text-muted-foreground font-bold">Track production status.</p>
+                    </div>
+                </Link>
+
+                <Link href="/manufacturing/calendar" className="group">
+                    <div className="h-full bg-card border rounded-[2rem] p-8 hover:shadow-xl hover:border-emerald-500/20 transition-all cursor-pointer relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-[100px] -mr-8 -mt-8" />
+
+                        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                            <Calendar size={32} />
+                        </div>
+
+                        <h3 className="text-2xl font-black mb-2 flex items-center gap-2">
+                            Schedule
+                            <ArrowRight size={20} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-emerald-500" />
+                        </h3>
+                        <p className="text-sm text-muted-foreground font-bold">Visual production timeline.</p>
                     </div>
                 </Link>
             </div>

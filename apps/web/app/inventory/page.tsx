@@ -50,8 +50,8 @@ export default function InventoryPage() {
                         <div className="w-4 h-[2px] bg-emerald-500" />
                         Stock Control
                     </div>
-                    <h1 className="text-4xl font-black tracking-tight">Inventory</h1>
-                    <p className="text-muted-foreground">Real-time stock levels and valuation.</p>
+                    <h1 className="text-4xl font-black tracking-tight">Inventory Intelligence</h1>
+                    <p className="text-muted-foreground">Real-time stock levels, valuation, and threshold alerts.</p>
                 </div>
                 <div className="relative group">
                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 group-focus-within:text-emerald-500 transition-colors" />
@@ -64,6 +64,46 @@ export default function InventoryPage() {
                     />
                 </div>
             </section>
+
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-emerald-500 text-white rounded-[2rem] p-8 shadow-xl shadow-emerald-500/20 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-all" />
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Total Valuation</p>
+                    <h2 className="text-4xl font-black tracking-tighter">
+                        ${products.reduce((acc, p) => acc + (Number(p.stockQuantity) * Number(p.costPrice || p.basePrice)), 0).toLocaleString()}
+                    </h2>
+                    <p className="text-[10px] mt-4 font-black uppercase opacity-60">Estimated Asset Value</p>
+                </div>
+
+                <div className="bg-card border rounded-[2rem] p-8 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Low Stock Alerts</p>
+                    <h2 className={cn(
+                        "text-4xl font-black tracking-tighter",
+                        products.filter(p => Number(p.stockQuantity) <= Number(p.minStockLevel || 10)).length > 0 ? "text-rose-500" : "text-foreground"
+                    )}>
+                        {products.filter(p => Number(p.stockQuantity) <= Number(p.minStockLevel || 10)).length}
+                    </h2>
+                    <p className="text-[10px] mt-4 font-black uppercase text-muted-foreground/60 tracking-widest">Requiring Restock</p>
+                </div>
+
+                <div className="bg-card border rounded-[2rem] p-8 shadow-sm relative overflow-hidden group">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Active SKUs</p>
+                    <h2 className="text-4xl font-black tracking-tighter">
+                        {products.length}
+                    </h2>
+                    <p className="text-[10px] mt-4 font-black uppercase text-muted-foreground/60 tracking-widest">Catalog Depth</p>
+                </div>
+
+                <div className="bg-card border rounded-[2rem] p-8 shadow-sm relative overflow-hidden group">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Units</p>
+                    <h2 className="text-4xl font-black tracking-tighter">
+                        {products.reduce((acc, p) => acc + Number(p.stockQuantity), 0).toLocaleString()}
+                    </h2>
+                    <p className="text-[10px] mt-4 font-black uppercase text-muted-foreground/60 tracking-widest">Physical Volume</p>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-outfit">
                 <AnimatePresence>
